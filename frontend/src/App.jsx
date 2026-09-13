@@ -4,15 +4,19 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+
 import "./App.css";
-import Login from "./pages/Login";
+
+import Login from "./pages/login";
 import Dashboard from "./pages/dashboard";
-import Customers from "./pages/Customers";
+import Customers from "./pages/customers";
 import CustomerDetails from "./pages/customerdetails";
 import Loans from "./pages/loans";
 import LoanDetails from "./pages/loandetails";
-import DashboardLayout from "./components/DashboardLayout";
+import DashboardLayout from "./components/dashboardlayout";
+
 import { useAuth } from "./context/AuthContext.jsx";
+
 import Payments from "./pages/Payments";
 import Installments from "./pages/Installments";
 import Reminders from "./pages/Reminders";
@@ -145,28 +149,31 @@ function App() {
             </ProtectedRoute>
           }
         />
-{/* Create Reminder */}
-<Route
-  path="/reminders/create"
-  element={
-    <ProtectedRoute>
-      <DashboardLayout>
-        <CreateReminder />
-      </DashboardLayout>
-    </ProtectedRoute>
-  }
-/>        
-{/* Reminder Details */}
-<Route
-  path="/reminders/:reminderId"
-  element={
-    <ProtectedRoute>
-      <DashboardLayout>
-        <ReminderDetails />
-      </DashboardLayout>
-    </ProtectedRoute>
-  }
-/>
+
+        {/* Create Reminder */}
+        <Route
+          path="/reminders/create"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <CreateReminder />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Reminder Details */}
+        <Route
+          path="/reminders/:reminderId"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <ReminderDetails />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+
         {/* Reminders */}
         <Route
           path="/reminders"
@@ -185,7 +192,7 @@ function App() {
           element={
             <ProtectedRoute>
               <DashboardLayout>
-                <Reports/>
+                <Reports />
               </DashboardLayout>
             </ProtectedRoute>
           }
