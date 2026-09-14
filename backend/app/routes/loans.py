@@ -3,18 +3,25 @@ from decimal import Decimal, ROUND_HALF_UP
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.services.installment_service import (
+    generate_installment_schedule
+)
+
 from app.services.loan_calculation import (
     calculate_loan_outstanding,
     get_overdue_installments
 )
+
 from app.core.database import get_db
 from app.core.security import get_current_user
+
 from app.models import (
     Loan,
     Customer,
     User,
     Installment
 )
+
 from app.schemas.loan import (
     LoanCreate,
     LoanResponse,
@@ -150,10 +157,14 @@ def create_loan(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Create a new loan.
+    Create a new loan and automatically generate
+    its installment schedule.
     """
 
-    # Check whether customer exists
+    # -----------------------------------------------------
+    # CHECK CUSTOMER
+    # -----------------------------------------------------
+
     customer = (
         db.query(Customer)
         .filter(
@@ -168,6 +179,20 @@ def create_loan(
             detail="Customer not found"
         )
 
+    # -----------------------------------------------------
+    # VALIDATE MATURITY DATE
+    # -----------------------------------------------------
+
+    if loan_data.maturity_date <= loan_data.start_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Maturity date must be after start date."
+        )
+
+    # -----------------------------------------------------
+    # CREATE LOAN
+    # -----------------------------------------------------
+
     new_loan = Loan(
         customer_id=loan_data.customer_id,
         principal_amount=loan_data.principal_amount,
@@ -181,7 +206,42 @@ def create_loan(
     )
 
     db.add(new_loan)
-    db.commit()
+
+    # Give the loan its database ID before generating
+    # installments.
+    db.flush()
+
+    # -----------------------------------------------------
+    # GENERATE INSTALLMENT SCHEDULE
+    # -----------------------------------------------------
+
+    try:
+
+        generate_installment_schedule(
+            db,
+            new_loan
+        )
+
+    except ValueError as exc:
+
+        db.rollback()
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc)
+        )
+
+    except Exception:
+
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate installment schedule."
+        )
+
+    # The installment service commits the transaction.
+    # Refresh the loan so the returned object is current.
     db.refresh(new_loan)
 
     return new_loan
@@ -403,7 +463,7 @@ def update_loan(
         )
 
     # -----------------------------------------------------
-    # Update normal loan fields
+    # UPDATE NORMAL LOAN FIELDS
     # -----------------------------------------------------
 
     if loan_data.principal_amount is not None:
@@ -442,7 +502,7 @@ def update_loan(
         )
 
     # -----------------------------------------------------
-    # Check installment consistency
+    # CHECK INSTALLMENT CONSISTENCY
     # -----------------------------------------------------
 
     installment_status = get_installment_status(
@@ -463,7 +523,7 @@ def update_loan(
     )
 
     # -----------------------------------------------------
-    # Requested status
+    # REQUESTED STATUS
     # -----------------------------------------------------
 
     requested_status = None
@@ -476,7 +536,7 @@ def update_loan(
         )
 
     # -----------------------------------------------------
-    # Prevent invalid completed status
+    # PREVENT INVALID COMPLETED STATUS
     # -----------------------------------------------------
 
     if requested_status == "completed":
@@ -503,7 +563,7 @@ def update_loan(
         loan.status = "completed"
 
     # -----------------------------------------------------
-    # Prevent active status when everything is paid
+    # PREVENT ACTIVE STATUS WHEN EVERYTHING IS PAID
     # -----------------------------------------------------
 
     elif requested_status == "active":
@@ -515,7 +575,7 @@ def update_loan(
             loan.status = "active"
 
     # -----------------------------------------------------
-    # Cancelled status
+    # CANCELLED STATUS
     # -----------------------------------------------------
 
     elif requested_status == "cancelled":
@@ -523,14 +583,10 @@ def update_loan(
         loan.status = "cancelled"
 
     # -----------------------------------------------------
-    # Other statuses
+    # OTHER STATUSES
     # -----------------------------------------------------
 
     elif requested_status is not None:
-
-        # Keep the existing status values supported by
-        # the application, while preventing a completed
-        # status from becoming inconsistent.
 
         if (
             requested_status == "pending"
@@ -543,14 +599,11 @@ def update_loan(
             loan.status = requested_status
 
     # -----------------------------------------------------
-    # No status supplied
+    # NO STATUS SUPPLIED
     # -----------------------------------------------------
 
     else:
 
-        # If all installments are paid, make sure the loan
-        # is completed even when status was not part of the
-        # update request.
         if (
             has_installments
             and all_paid
@@ -559,7 +612,7 @@ def update_loan(
             loan.status = "completed"
 
     # -----------------------------------------------------
-    # Final protection
+    # FINAL PROTECTION
     # -----------------------------------------------------
 
     final_status = (
