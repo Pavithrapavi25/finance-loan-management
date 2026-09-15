@@ -24,6 +24,8 @@ import { useAuth } from "../context/AuthContext";
 function Reports() {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const API_URL =
+    import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
   const [portfolioReport, setPortfolioReport] = useState(null);
   const [paymentReport, setPaymentReport] = useState(null);
@@ -170,7 +172,7 @@ function Reports() {
       setLoadingPortfolio(true);
 
       const response = await fetch(
-        "http://127.0.0.1:8000/reports/loan-portfolio",
+        `${API_URL}/reports/loan-portfolio`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -205,7 +207,7 @@ function Reports() {
       setLoadingPayments(true);
 
       const response = await fetch(
-        "http://127.0.0.1:8000/reports/payment-collection",
+        `${API_URL}/reports/payment-collection`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -242,7 +244,7 @@ function Reports() {
       setLoadingOutstanding(true);
 
       const response = await fetch(
-        "http://127.0.0.1:8000/reports/outstanding-overdue",
+        `${API_URL}/reports/outstanding-overdue`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -283,7 +285,7 @@ function Reports() {
       setCustomerFinancialError("");
 
       const response = await fetch(
-        "http://127.0.0.1:8000/reports/customer-financial",
+        `${API_URL}/reports/customer-financial`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -357,7 +359,7 @@ function Reports() {
       setDateRangeError("");
 
       const response = await fetch(
-        `http://127.0.0.1:8000/reports/date-range?from_date=${encodeURIComponent(
+        `${API_URL}/reports/date-range?from_date=${encodeURIComponent(
           fromDate
         )}&to_date=${encodeURIComponent(toDate)}`,
         {
@@ -423,7 +425,7 @@ function Reports() {
       setExportError("");
 
       const response = await fetch(
-        `http://127.0.0.1:8000${endpoint}`,
+        `${API_URL}${endpoint}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
